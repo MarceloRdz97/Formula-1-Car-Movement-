@@ -1,0 +1,261 @@
+%Pedir velocidad.
+v = input('Ingresa una velocidad(m/s): '); 
+
+% Fuerza del carro
+m = 800;
+g = 9.81;
+
+% Máximos
+xMax = 90;
+yMax = 320;
+
+% Ángulos
+thetaProm = deg2rad(20);
+
+% Coeficientes de fricción
+mS1 = 0.5;
+
+% Funcion Pista
+x1 = 30;
+y1 = 230;
+x2 = 280;
+y2 = 20;
+
+% Creacion de la Funcion de Pista
+a = getCoefs(xMax, yMax, x2, y2);
+rCurva = radioCurv(a(1), a(2), a(3), a(4), xMax);
+lon = longArc(a(1), a(2), a(3), a(4),  x1, x2, 100000);
+
+fprintf("Solución:\n");
+fprintf("\tFunción: %fx^3 + %fx^2 + %fx + %f\n", a(1), a(2), a(3), a(4));
+fprintf("\tRadio de curva: %fm\n", rCurva);
+fprintf("\tLongitud de arco: %fm\n", lon);
+
+%Declaracion de Arreglos de Pista
+n = 1000;
+yPistaRmayor50 = NaN(1,n);
+yPistaRmenor50 = NaN(1,n);
+vRmayor50thetaProm = NaN(1,n);
+vRmayor50theta1 = NaN(1,n);
+vRmayor50theta2 = NaN(1,n);
+
+xPista = linspace(x1,x2,n);
+
+%Separacion cuando R < 50, Velocidad Maxima en zonas (m/s)
+for i = 1:n
+    if radioCurv(a(1), a(2), a(3), a(4), xPista(i)) > 50
+        yPistaRmayor50(i) = f(a(1), a(2), a(3), a(4), xPista(i));
+    else 
+        yPistaRmenor50(i) = f(a(1), a(2), a(3), a(4), xPista(i));
+
+        rad = radioCurv(a(1), a(2), a(3), a(4), xPista(i));
+
+        vRmayor50thetaProm(i) = sqrt(rad * 9.81 * ...
+            ( (sin(thetaProm) + mS1 * cos(thetaProm)) ...
+            / ( mS1 * sin(thetaProm) +  cos(thetaProm)) ));
+    end
+end
+
+%Encontrar puntos inicio de curva
+seg1 = NaN(1, n/2);
+seg2 = NaN(1, n/2);
+
+p1Encontrado = false;
+p2Encontrado = false;
+
+for i = 1 : n/2
+    seg1(i) = yPistaRmenor50(i);
+    seg2(i) = yPistaRmenor50(i + (n/2));
+    if p1Encontrado == false && ~isnan(seg1(i))
+        p1Gradas = [xPista(i), seg1(i)];
+        p1GradasIdx = i;
+        p1Encontrado = true;
+    end
+
+    if p2Encontrado == false && ~isnan(seg2(i))
+        p2Gradas = [xPista(i + n/2), seg2(i)];
+        p2GradasIdx = i + (n/2);
+        p2Encontrado = true;
+    end
+end
+
+%Crear Graficas de Lineas Tangentes
+n = 100;
+lineaTan1 = NaN(1, n);
+grada = NaN(1, n);
+
+lineaTan2 = NaN(1, n);
+grada2 = NaN(1, n);
+
+x = p1Gradas(1) : p1Gradas(1) + 2 * (n/2) - 1;
+
+xsg = p2Gradas(1) : p2Gradas(1) + 2 * (n/2) - 1;
+
+
+%xPista
+
+for i = 1 : n
+   
+  lineaTan1(i) = recta(fp(a(1), a(2), a(3), p1Gradas(1)), p1Gradas(1), p1Gradas(2), x(i)) ;
+  grada(i) = lineaTan1(i) + 100;
+  lineaTan2(i) = recta(fp(a(1), a(2), a(3), p2Gradas(1)), p2Gradas(1), p2Gradas(2), xsg(i)) ;
+  grada2(i) = lineaTan2(i) - 100;
+  
+end
+
+
+% % Gráfica del círculo
+% n = 100;
+% tP = linspace(0, thetaProm, n);
+% t1 = linspace(0, theta1, n);    
+% t2 = linspace(0, theta2, n); 
+% 
+% % Zeros
+% xP = zeros(1, n);
+% yP = zeros(1, n);
+% x1 = zeros(1, n);
+% y1 = zeros(1, n);
+% x2 = zeros(1, n);
+% y2 = zeros(1, n);
+% 
+% % Populación de datos
+% for i = 1:n
+%     xP(i) = (xMax - rCurva) - rCurva * cos(tP(i));
+%     yP(i) = (yMax - rCurva) - rCurva * sin(tP(i));
+%     x1(i) = (xMax - rCurva) - rCurva * cos(t1(i));
+%     y1(i) = (yMax - rCurva) - rCurva * sin(t1(i));
+%     x2(i) = (xMax - rCurva) - rCurva * cos(t2(i));
+%     y2(i) = (yMax - rCurva) - rCurva * sin(t2(i));
+% end
+
+% Plot 
+%subplot(2,2,1);
+hold on;
+
+plot(xPista, yPistaRmayor50);
+plot(xPista, yPistaRmenor50,"r");
+
+plot(x,lineaTan1, "--k");
+plot(x,grada, 'LineWidth',10);
+
+plot(xsg,lineaTan2, "--k");
+plot(xsg,grada2, 'LineWidth',10);
+
+xlabel('X-axis');
+ylabel('Y-axis');
+title('Pista');
+grid on;
+
+%Gráfica de la pista por segmentos. Asumiendo que se utiliza la inclinación
+%de thetaProm
+
+%1er segmento
+for i = 1:5:166
+    scatter(xPista(i), yPistaRmayor50(i), 'y', 'LineWidth', 2);
+    drawnow; 
+    pause(0.00001);
+end 
+
+%1er línea tangente, velocidad de derrape en índice 166 de vThetaProm
+if v > vRmayor50thetaProm(p1GradasIdx)
+    for j = 1:2:100
+        scatter(x(j), lineaTan1(j), 'y', 'LineWidth', 2);
+        drawnow;
+        pause(0.00001);
+    end
+else
+    %1 1/2 segmento
+    for j = 167:5:309
+        scatter(xPista(j), yPistaRmenor50(j), 'y', 'LineWidth', 2);
+        drawnow; 
+        pause(0.00001);
+    end 
+end 
+
+%2ndo segmento 
+for i = 310:10:932
+    scatter(xPista(i), yPistaRmayor50(i), 'y', 'LineWidth', 2);
+    drawnow; 
+    pause(0.00001);
+end 
+
+%2nda línea tangente, velocidad de derrape en índice 166 de vThetaProm
+if v > vRmayor50thetaProm(p1GradasIdx)
+    for j = 1:2:100
+        scatter(xsg(j), lineaTan2(j), 'y', 'LineWidth', 2);
+        drawnow; 
+        pause(0.00001);
+    end 
+else 
+    %2 1/2 segmento
+    for j = 933:5:1000
+        scatter(xPista(j), yPistaRmenor50(j), 'y', 'LineWidth', 2);
+        drawnow; 
+        pause(0.00001);
+    end 
+end 
+
+if v > vRmayor50thetaProm(p1GradasIdx)
+    derrape = distanciaDeDerrape(v, mS1);
+    fprintf('\tDistancia de derrape: %fm\n', derrape);
+end
+
+% subplot(2,2,2);
+% plot(xP, yP);
+% grid on;
+% subplot(2,2,3);
+% plot(x1, y1);
+% grid on;
+% 
+% subplot(2,2,4);
+% plot(x2, y2);
+
+% xlabel('X-axis');
+% ylabel('Y-axis');
+% title('Curves');
+% legend('Curve 1', 'Curve 2', 'Curve 3');
+% grid on; % Add grid
+% 
+% hold off; % Release the hold on the plot
+
+function coeffs = getCoefs(x1, y1, x2, y2)
+    matrix = [x1^3, x1^2, x1, 1;
+            x2^3, x2^2, x2, 1;
+            3*x1^2, 2*x1, 1, 0;
+            3*x2^2, 2*x2, 1, 0];
+    coeffs = inv(matrix) * [y1; y2; 0; 0];
+end
+
+function res = f(a3, a2, a1, a0, x)
+    res = a3 .* (x.^3) + a2 .* (x.^2) + a1 .* x + a0;
+end
+
+function res = fp(a3, a2, a1, x)
+    res = 3 * a3 * (x^2) + 2* a2 * x + a1;
+end
+
+function res = fpp(a3, a2, x)
+    res = 6 * a3 * x + 2 * a2;
+end
+
+function rc = radioCurv(a3, a2, a1, a0, x)
+    rc = ((1 + fp(a3, a2, a1, x)^2)^(3/2))/abs(fpp(a3, a2, x));
+end
+
+function lon = longArc(a3, a2, a1, a0,  xi, xf, n) 
+    dx = (xf - xi) / n;
+    lon = 0;
+    for x = linspace(xi, xf, n)
+        lon = lon + sqrt(1 + fp(a3, a2, a1, x)^2) * dx;
+    end
+end
+
+function res = recta(m, x0, y0, x)
+    res = m * (x - x0) + y0;
+end
+
+% Explicacion https://photos.app.goo.gl/vWguj5AQ7Cd7ECYx7
+function d = distanciaDeDerrape(vi, coeffFricion) 
+    g = 9.81;
+    d = (vi^2) / (2 * coeffFricion * g);
+end
